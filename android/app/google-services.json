@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "944667494311",
+    "project_id": "capstone-disupensa25",
+    "storage_bucket": "capstone-disupensa25.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:944667494311:android:a7a8815ea6cbf7d58c1882",
+        "android_client_info": {
+          "package_name": "com.example.disupensa"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbs3gLhQPZYmGxv5oj6U-G4T0jQcfUdzQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
