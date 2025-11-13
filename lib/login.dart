@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'main.dart'; // your homepage (Disupensa)
 import 'register.dart';
+import 'petstart.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -20,53 +20,44 @@ class _LoginPageState extends State<LoginPage> {
   bool isLoading = false;
 
   // Function for login
-  Future<void> loginUser() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => isLoading = true);
-
-    try {
-      await _auth.signInWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
-      );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login successful!')),
-      );
-
-      // Navigate to homepage
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const Disupensa()),
-      );
-    } on FirebaseAuthException catch (e) {
-      String message = 'Login failed';
-
-      // Firebase-specific error messages
-      if (e.code == 'user-not-found') {
-        message = 'Wrong email. No user found for that email.';
-      } else if (e.code == 'wrong-password') {
-        message = 'Wrong password. Please try again.';
-      } else if (e.code == 'invalid-email') {
-        message = 'Invalid email format.';
-      } else if (e.code == 'user-disabled') {
-        message = 'This account has been disabled.';
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
-    } catch (e) {
-      // For unexpected errors
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('An unexpected error occurred: $e')),
-      );
-    } finally {
-      setState(() => isLoading = false);
+   Future<void> loginUser() async {
+  setState(() => isLoading = true);
+  try {
+    await _auth.signInWithEmailAndPassword(
+      email: emailController.text.trim(),
+      password: passwordController.text.trim(),
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Login successful!')),
+    );
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const PetStart()),
+    );
+  } on FirebaseAuthException catch (e) {
+    String message = 'Login failed';
+    if (e.code == 'user-not-found') {
+      message = 'Wrong email. No user found for that email.';
+    } else if (e.code == 'wrong-password') {
+      message = 'Wrong password. Please try again.';
+    } else if (e.code == 'invalid-email') {
+      message = 'Invalid email format.';
+    } else if (e.code == 'user-disabled') {
+      message = 'This account has been disabled.';
     }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('An unexpected error occurred: $e')),
+    );
+  } finally {
+    if (mounted) setState(() => isLoading = false);
   }
-
+}
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -244,3 +235,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
+
+
+        
