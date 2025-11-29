@@ -6,7 +6,7 @@ import 'pet_profile.dart';
 
 
 class PetStart extends StatefulWidget {
-  const PetStart({Key? key}) : super(key: key);
+  const PetStart({super.key});
 
   @override
   State<PetStart> createState() => _PetStartState();
@@ -24,7 +24,18 @@ class _PetStartState extends State<PetStart> {
   final TextEditingController petHabit = TextEditingController();
 
   String petGender = '';
+  String selectedBreed = '';
   bool isLoading = false;
+
+  // List of dog breeds
+  final List<String> dogBreeds = [
+    'Labrador Retriever',
+    'German Shepherd',
+    'Golden Retriever',
+    'Bulldog',
+    'Poodle',
+    'Beagle',
+  ];
 
 
 Future<void> registerUser() async {
@@ -32,6 +43,12 @@ Future<void> registerUser() async {
   if (petGender.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Please select gender')),
+    );
+    return;
+  }
+  if (selectedBreed.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please select a breed')),
     );
     return;
   }
@@ -47,15 +64,19 @@ Future<void> registerUser() async {
       uid = userCredential.user!.uid;
     }
 
-    // ✅ FIXED — Firestore now accepts this
-    await _firestore.collection('user').doc(uid).set({
+    // ✅ Save pet data to subcollection: user/{uid}/pets/{petId}
+    await _firestore
+        .collection('user')
+        .doc(uid)
+        .collection('pets')
+        .add({
       'petName': petName.text.trim(),
-      'petBreed': petBreed.text.trim(),
+      'petBreed': selectedBreed,
       'petGender': petGender,
-      'petAge': petAge.text.trim(),
-      'petWeight': petWeight.text.trim(),
+      'petAge': int.parse(petAge.text.trim()),
+      'petWeight': double.parse(petWeight.text.trim()),
       'petHabit': petHabit.text.trim(),
-      'createdAt': Timestamp.now(), // ✅ IMPORTANT
+      'createdAt': Timestamp.now(),
     });
 
     if (!mounted) return;
@@ -66,7 +87,7 @@ Future<void> registerUser() async {
       MaterialPageRoute(
         builder: (context) => PetProfile(
           petName: petName.text.trim(),
-          petBreed: petBreed.text.trim(),
+          petBreed: selectedBreed,
           petGender: petGender,
           petAge: petAge.text.trim(),
           petWeight: petWeight.text.trim(),
@@ -89,107 +110,255 @@ Future<void> registerUser() async {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF8D6748), Color(0xFFB9935A)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
+      backgroundColor: const Color(0xFF1A6A8C),
+      body: SafeArea(
         child: Center(
-          child: Card(
-            elevation: 8,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            margin: EdgeInsets.symmetric(horizontal: 24),
+          child: SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 32.0),
+              child: Container(
+                width: 380,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF66B2FF),
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.pets, size: 60, color: Color(0xFF8D6748)),
-                      SizedBox(height: 12),
-                      Text(
+                      const Icon(
+                        Icons.pets,
+                        size: 50,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
                         "Let's get started!",
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 22,
+                          color: Colors.white,
+                        ),
                       ),
-                      Text(
+                      const Text(
                         "Tell us about your furry friend",
-                        style: TextStyle(color: Colors.grey[700]),
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: 12,
+                        ),
                       ),
-                      SizedBox(height: 24),
-                      _buildTextField(
-                        label: "Pet's Name",
-                        controller: petName,
+                      const SizedBox(height: 24),
+
+                      // Pet Name + Pet Breed Row
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildTextField(
+                              label: "Pet Name",
+                              controller: petName,
+                              inputFormatters: [LengthLimitingTextInputFormatter(20)],
+                              validator: (value) {
+                                if (value == null || value.isEmpty) return 'Enter Pet Name';
+                                if (value.length > 20) return 'Max 20 characters';
+                                return null;
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "Breed",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                DropdownButtonFormField<String>(
+                                  value: selectedBreed.isEmpty ? null : selectedBreed,
+                                  isExpanded: false,
+                                  decoration: InputDecoration(
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 8,
+                                    ),
+                                    isDense: true,
+                                    hintText: "Breed",
+                                  ),
+                                  items: dogBreeds.map((breed) {
+                                    return DropdownMenuItem<String>(
+                                      value: breed,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 4),
+                                        child: Text(
+                                          breed,
+                                          style: const TextStyle(fontSize: 11),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      selectedBreed = value ?? '';
+                                    });
+                                  },
+                                  validator: (value) => value == null || value.isEmpty
+                                      ? 'Select breed'
+                                      : null,
+                                ),
+                                const SizedBox(height: 12),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      SizedBox(height: 12),
-                      _buildTextField(
-                        label: "Pet's Breed",
-                        controller: petBreed,
+
+                      // Pet Age + Pet Weight Row
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildTextField(
+                              label: "Age",
+                              controller: petAge,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(2)],
+                              validator: (value) {
+                                if (value == null || value.isEmpty) return 'Enter Age';
+                                final parsed = int.tryParse(value);
+                                if (parsed == null) return 'Enter whole number';
+                                if (parsed < 0 || parsed > 10) return 'Age must be 0-10';
+                                return null;
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _buildTextField(
+                              label: "Weight",
+                              controller: petWeight,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')), LengthLimitingTextInputFormatter(5)],
+                              validator: (value) {
+                                if (value == null || value.isEmpty) return 'Enter Weight';
+                                // Allow up to 2 integer digits and up to 2 decimal digits
+                                final pattern = RegExp(r'^\d{1,2}(?:\.\d{1,2})?$');
+                                if (!pattern.hasMatch(value)) return 'Enter valid weight (e.g. 12.5)';
+                                final parsed = double.tryParse(value);
+                                if (parsed == null) return 'Enter valid number';
+                                if (parsed <= 0) return 'Invalid weight';
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
                       ),
-                      SizedBox(height: 12),
+
+                      // Pet Habit Full Width
                       _buildTextField(
-                        label: "Pet's Age",
-                        controller: petAge,
-                        keyboardType: TextInputType.number,
-                      ),
-                      SizedBox(height: 12),
-                      _buildTextField(
-                        label: "Pet's Weight",
-                        controller: petWeight,
-                        keyboardType: TextInputType.number,
-                      ),
-                      SizedBox(height: 12),
-                      _buildTextField(
-                        label: "Pet's Habit",
+                        label: "Pet Habit",
                         controller: petHabit,
                       ),
-                      SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        value: petGender.isEmpty ? null : petGender,
-                        decoration: InputDecoration(
-                          labelText: "Pet's Gender",
-                          labelStyle: TextStyle(color: Color(0xFF8D6748)),
-                          filled: true,
-                          fillColor: Color(0xFFB3D3F9),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+
+                      // Pet Gender Full Width
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Pet Gender",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                              fontSize: 12,
+                            ),
                           ),
-                        ),
-                        items: ['Male', 'Female'].map((gender) {
-                          return DropdownMenuItem(
-                            value: gender,
-                            child: Text(gender),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            petGender = value ?? '';
-                          });
-                        },
-                        validator: (value) =>
-                            value == null || value.isEmpty ? 'Please select gender' : null,
+                          const SizedBox(height: 6),
+                          DropdownButtonFormField<String>(
+                            value: petGender.isEmpty ? null : petGender,
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                              isDense: true,
+                              hintText: "Select",
+                            ),
+                            items: ['Male', 'Female'].map((gender) {
+                              return DropdownMenuItem<String>(
+                                value: gender,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 2),
+                                  child: Text(
+                                    gender,
+                                    style: const TextStyle(fontSize: 10),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                petGender = value ?? '';
+                              });
+                            },
+                            validator: (value) => value == null || value.isEmpty
+                                ? 'Please select gender'
+                                : null,
+                            menuMaxHeight: 80,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
                       ),
-                      SizedBox(height: 24),
+
+                      const SizedBox(height: 24),
+
+                      // Finish Button
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
                           onPressed: isLoading ? null : registerUser,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFF4B8DF8),
+                            backgroundColor: const Color(0xFF987554),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            padding: EdgeInsets.symmetric(vertical: 16),
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 14),
                           ),
                           child: isLoading
-                              ? CircularProgressIndicator(color: Colors.white)
-                              : Text(
+                              ? const CircularProgressIndicator(
+                                  valueColor:
+                                      AlwaysStoppedAnimation<Color>(Colors.white),
+                                )
+                              : const Text(
                                   "Finish!",
-                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
                                 ),
                         ),
                       ),
@@ -212,23 +381,38 @@ Future<void> registerUser() async {
     List<TextInputFormatter>? inputFormatters,
     String? Function(String?)? validator,
   }) {
-    return TextFormField(
-      controller: controller,
-      obscureText: obscure,
-      keyboardType: keyboardType,
-      inputFormatters: inputFormatters,
-      validator: validator ??
-          (value) => value == null || value.isEmpty ? 'Please enter $label' : null,
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: Color(0xFF8D6748), fontWeight: FontWeight.bold),
-        filled: true,
-        fillColor: Color(0xFFB3D3F9),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
         ),
-        contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-      ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          obscureText: obscure,
+          keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
+          validator: validator ??
+              (value) => value == null || value.isEmpty ? 'Enter $label' : null,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
     );
   }
 }

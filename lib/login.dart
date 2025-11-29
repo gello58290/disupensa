@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'register.dart';
 import 'petstart.dart';
+import 'Forgot_Password.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,6 +19,8 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController passwordController = TextEditingController();
 
   bool isLoading = false;
+  bool isForgotPasswordHovered = false;
+  bool isRegisterHovered = false;
 
   // Function for login
    Future<void> loginUser() async {
@@ -156,6 +159,34 @@ class _LoginPageState extends State<LoginPage> {
 
                         const SizedBox(height: 8),
 
+                        // Navigation to Forgot Password with hover effect
+                        MouseRegion(
+                          onEnter: (_) => setState(() => isForgotPasswordHovered = true),
+                          onExit: (_) => setState(() => isForgotPasswordHovered = false),
+                          cursor: SystemMouseCursors.click,
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const ForgotPasswordPage(),
+                                ),
+                              );
+                            },
+                            child: Text(
+                              "Forgot Password?",
+                              style: TextStyle(
+                                color: isForgotPasswordHovered 
+                                    ? const Color.fromARGB(255, 0, 62, 112)
+                                    : Colors.black,
+                                fontWeight: FontWeight.bold,
+                                fontSize: isForgotPasswordHovered ? 13 : 12,
+                             
+                              ),
+                            ),
+                          ),
+                        ),
+
                         const Divider(color: Colors.black),
 
                         // Navigation to Register
@@ -167,22 +198,29 @@ class _LoginPageState extends State<LoginPage> {
                               style:
                                   TextStyle(color: Colors.black, fontSize: 12),
                             ),
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const RegisterPage(),
+                            MouseRegion(
+                              onEnter: (_) => setState(() => isRegisterHovered = true),
+                              onExit: (_) => setState(() => isRegisterHovered = false),
+                              cursor: SystemMouseCursors.click,
+                              child: GestureDetector(
+                                onTap: () {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const RegisterPage(),
+                                    ),
+                                  );
+                                },
+                                child: Text(
+                                  "Register",
+                                  style: TextStyle(
+                                    color: isRegisterHovered
+                                        ? const Color.fromARGB(255, 0, 62, 112)
+                                        : Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: isRegisterHovered ? 13 : 12,
                                   ),
-                                );
-                              },
-                              child: const Text(
-                                "Register",
-                                style: TextStyle(
-                                  color: Colors.blue,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
                                 ),
                               ),
                             ),
@@ -207,7 +245,7 @@ class _LoginPageState extends State<LoginPage> {
     bool obscure = false,
     String? Function(String?)? validator,
   }) {
-    return Column(
+    return Column(                                       
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(

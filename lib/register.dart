@@ -25,6 +25,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   String gender = '';
   bool isLoading = false;
+  bool isLoginHereHovered = false;
 
   // Register user and save data to Firebase
   Future<void> registerUser() async {
@@ -42,13 +43,17 @@ class _RegisterPageState extends State<RegisterPage> {
     final String email = emailController.text.trim();
     final String password = passwordController.text.trim();
 
+    // Create account
     UserCredential userCredential =
         await _auth.createUserWithEmailAndPassword(
       email: email,
       password: password,
     );
 
-    await _firestore.collection('user').doc(userCredential.user!.uid).set({
+    User? user = userCredential.user;
+
+    // Save info to Firestore
+    await _firestore.collection('user').doc(user!.uid).set({
       'firstName': firstNameController.text.trim(),
       'lastName': lastNameController.text.trim(),
       'age': ageController.text.trim(),
@@ -58,28 +63,35 @@ class _RegisterPageState extends State<RegisterPage> {
       'createdAt': DateTime.now(),
     });
 
+    // 🔥 Send email verification link
+    await user.sendEmailVerification();
+
     if (!mounted) return;
 
-    // ✅ Use mounted check before showing snackbar or navigating
+    // Show message
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Registration successful! Redirecting to login...'),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 2),
+        content: Text(
+          'A verification link has been sent to your email.\nPlease verify before logging in.',
+        ),
+        backgroundColor: Colors.orange,
+        duration: Duration(seconds: 4),
       ),
     );
 
-    // Wait a bit before redirecting
-    await Future.delayed(const Duration(seconds: 2));
+    // Redirect to Login after a delay
+    await Future.delayed(const Duration(seconds: 3));
 
     if (!mounted) return;
+
+    // Go to login page
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const LoginPage()),
     );
   } on FirebaseAuthException catch (e) {
     String message = 'Registration failed';
+
     if (e.code == 'email-already-in-use') {
       message = 'This email is already registered.';
     } else if (e.code == 'invalid-email') {
@@ -89,16 +101,19 @@ class _RegisterPageState extends State<RegisterPage> {
     }
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Unexpected error: $e')),
+    );
   } finally {
     if (mounted) {
       setState(() => isLoading = false);
     }
   }
 }
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -140,20 +155,27 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                         const SizedBox(height: 20),
 
-                        // First Name
-                        buildTextField(
-                          label: "First Name",
-                          controller: firstNameController,
-                          validator: (value) =>
-                              value!.isEmpty ? 'Enter first name' : null,
-                        ),
-
-                        // Last Name
-                        buildTextField(
-                          label: "Last Name",
-                          controller: lastNameController,
-                          validator: (value) =>
-                              value!.isEmpty ? 'Enter last name' : null,
+                        // First Name + Last Name Row
+                        Row(
+                          children: [
+                            Expanded(
+                              child: buildTextField(
+                                label: "First Name",
+                                controller: firstNameController,
+                                validator: (value) =>
+                                    value!.isEmpty ? 'Enter first name' : null,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: buildTextField(
+                                label: "Last Name",
+                                controller: lastNameController,
+                                validator: (value) =>
+                                    value!.isEmpty ? 'Enter last name' : null,
+                              ),
+                            ),
+                          ],
                         ),
 
                         // Age + Gender Row
@@ -172,76 +194,85 @@ class _RegisterPageState extends State<RegisterPage> {
                               ),
                             ),
                             const SizedBox(width: 10),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  "Gender",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    "Gender",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 5),
-                                Row(
-                                  children: [
-                                    GestureDetector(
-                                      onTap: () =>
-                                          setState(() => gender = 'Male'),
-                                      child: CircleAvatar(
-                                        radius: 20,
-                                        backgroundColor: gender == 'Male'
-                                            ? Colors.blueAccent
-                                            : Colors.white,
-                                        child: const Icon(Icons.male,
-                                            color: Colors.black),
+                                  const SizedBox(height: 5),
+                                  Row(
+                                    children: [
+                                      GestureDetector(
+                                        onTap: () =>
+                                            setState(() => gender = 'Male'),
+                                        child: CircleAvatar(
+                                          radius: 18,
+                                          backgroundColor: gender == 'Male'
+                                              ? Colors.blueAccent
+                                              : Colors.white,
+                                          child: const Icon(Icons.male,
+                                              color: Colors.black),
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    GestureDetector(
-                                      onTap: () =>
-                                          setState(() => gender = 'Female'),
-                                      child: CircleAvatar(
-                                        radius: 20,
-                                        backgroundColor: gender == 'Female'
-                                            ? Colors.pinkAccent
-                                            : Colors.white,
-                                        child: const Icon(Icons.female,
-                                            color: Colors.black),
+                                      const SizedBox(width: 8),
+                                      GestureDetector(
+                                        onTap: () =>
+                                            setState(() => gender = 'Female'),
+                                        child: CircleAvatar(
+                                          radius: 18,
+                                          backgroundColor: gender == 'Female'
+                                              ? Colors.pinkAccent
+                                              : Colors.white,
+                                          child: const Icon(Icons.female,
+                                              color: Colors.black),
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
 
-                        // Address
-                        buildTextField(
-                          label: "Address",
-                          controller: addressController,
-                          validator: (value) =>
-                              value!.isEmpty ? 'Enter address' : null,
+                        // Address + Email Row
+                        Row(
+                          children: [
+                            Expanded(
+                              child: buildTextField(
+                                label: "Address",
+                                controller: addressController,
+                                validator: (value) =>
+                                    value!.isEmpty ? 'Enter address' : null,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: buildTextField(
+                                label: "Email",
+                                controller: emailController,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Enter email';
+                                  }
+                                  if (!RegExp(r'^[^@]+@[^@]+\.[^@]+')
+                                      .hasMatch(value)) {
+                                    return 'Invalid email';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                          ],
                         ),
 
-                        // Email
-                        buildTextField(
-                          label: "Email Address",
-                          controller: emailController,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Enter your email';
-                            }
-                            if (!RegExp(r'^[^@]+@[^@]+\.[^@]+')
-                                .hasMatch(value)) {
-                              return 'Enter valid email';
-                            }
-                            return null;
-                          },
-                        ),
-
-                        // Password
+                        // Password Full Width
                         buildTextField(
                           label: "Password",
                           controller: passwordController,
@@ -287,21 +318,30 @@ class _RegisterPageState extends State<RegisterPage> {
                               style:
                                   TextStyle(color: Colors.black, fontSize: 12),
                             ),
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const LoginPage(),
+                            MouseRegion(
+                              onEnter: (_) =>
+                                  setState(() => isLoginHereHovered = true),
+                              onExit: (_) =>
+                                  setState(() => isLoginHereHovered = false),
+                              cursor: SystemMouseCursors.click,
+                              child: GestureDetector(
+                                onTap: () {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const LoginPage(),
+                                    ),
+                                  );
+                                },
+                                child: Text(
+                                  "Login here",
+                                  style: TextStyle(
+                                    color: isLoginHereHovered
+                                        ? const Color.fromARGB(255, 0, 62, 112)
+                                        : Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: isLoginHereHovered ? 13 : 12,
                                   ),
-                                );
-                              },
-                              child: const Text(
-                                "Login here",
-                                style: TextStyle(
-                                  color: Colors.blue,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
                                 ),
                               ),
                             ),

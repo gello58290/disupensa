@@ -9,14 +9,14 @@ class PetProfile extends StatefulWidget {
   final String petHabit;
 
   const PetProfile({
-    Key? key,
+    super.key,
     required this.petName,
     required this.petBreed,
     required this.petGender,
     required this.petAge,
     required this.petWeight,
     required this.petHabit,
-  }) : super(key: key);
+  });
 
   @override
   State<PetProfile> createState() => _PetProfileState();
@@ -99,7 +99,7 @@ class _PetProfileState extends State<PetProfile> {
                         _buildField('Pet\'s Weight', weightController, enabled: isEditing, keyboardType: TextInputType.number),
                         _buildField('Pet\'s Habit', habitController, enabled: isEditing),
                         DropdownButtonFormField<String>(
-                          value: gender,
+                          initialValue: gender,
                           decoration: const InputDecoration(labelText: "Pet's Gender"),
                           items: ['Male', 'Female'].map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
                           onChanged: isEditing ? (v) => setState(() => gender = v ?? '') : null,
