@@ -155,10 +155,7 @@ class _LoginPageState extends State<LoginPage> {
                               ),
 
                         const SizedBox(height: 8),
-                        const Text(
-                          "Forgot Password?",
-                          style: TextStyle(color: Colors.black, fontSize: 12),
-                        ),
+
                         const Divider(color: Colors.black),
 
                         // Navigation to Register
