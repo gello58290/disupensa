@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'register.dart';
 import 'petstart.dart';
+import 'homepage.dart';
 import 'Forgot_Password.dart';
 
 class LoginPage extends StatefulWidget {
@@ -13,6 +15,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _auth = FirebaseAuth.instance;
+  final _firestore = FirebaseFirestore.instance;
   final _formKey = GlobalKey<FormState>();
 
   final TextEditingController emailController = TextEditingController();
@@ -22,22 +25,53 @@ class _LoginPageState extends State<LoginPage> {
   bool isForgotPasswordHovered = false;
   bool isRegisterHovered = false;
 
+  // Check if user has registered a pet
+  Future<bool> hasPetRegistered(String uid) async {
+    try {
+      final petsSnapshot = await _firestore
+          .collection('user')
+          .doc(uid)
+          .collection('pets')
+          .limit(1)
+          .get();
+      return petsSnapshot.docs.isNotEmpty;
+    } catch (e) {
+      return false;
+    }
+  }
+
   // Function for login
    Future<void> loginUser() async {
   setState(() => isLoading = true);
   try {
-    await _auth.signInWithEmailAndPassword(
+    UserCredential userCredential = await _auth.signInWithEmailAndPassword(
       email: emailController.text.trim(),
       password: passwordController.text.trim(),
     );
     if (!mounted) return;
+    
+    // Check if user has registered a pet
+    bool petExists = await hasPetRegistered(userCredential.user!.uid);
+    
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Login successful!')),
     );
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const PetStart()),
-    );
+    
+    if (mounted) {
+      if (petExists) {
+        // User has pet → go to homepage
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage()),
+        );
+      } else {
+        // User has no pet → go to petstart
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const PetStart()),
+        );
+      }
+    }
   } on FirebaseAuthException catch (e) {
     String message = 'Login failed';
     if (e.code == 'user-not-found') {

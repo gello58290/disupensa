@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'schedule.dart';
 
 class PetProfile extends StatefulWidget {
   final String petName;
@@ -31,6 +34,21 @@ class _PetProfileState extends State<PetProfile> {
   late String gender;
   bool isEditing = false;
   int currentTab = 2; // 0: Home, 1: Schedule, 2: Profile
+  final _auth = FirebaseAuth.instance;
+  final _firestore = FirebaseFirestore.instance;
+
+  // Owner info
+  String ownerFirstName = '';
+  String ownerLastName = '';
+  String ownerAge = '';
+  String ownerGender = '';
+  String ownerAddress = '';
+  String ownerEmail = '';
+  bool ownerLoading = true;
+  // Debug info for owner doc
+  String? ownerUid;
+  bool ownerDocExists = false;
+  Map<String, dynamic>? ownerDocData;
 
   @override
   void initState() {
@@ -41,6 +59,42 @@ class _PetProfileState extends State<PetProfile> {
     weightController = TextEditingController(text: widget.petWeight);
     habitController = TextEditingController(text: widget.petHabit);
     gender = widget.petGender;
+    _fetchOwnerProfile();
+  }
+
+  Future<void> _fetchOwnerProfile() async {
+    try {
+      final uid = _auth.currentUser?.uid;
+      if (uid == null) return;
+      final doc = await _firestore.collection('user').doc(uid).get();
+      ownerUid = uid;
+      ownerDocExists = doc.exists;
+      if (!doc.exists) {
+        // No user doc found — fall back to auth info
+        print('Owner doc not found for uid: $uid');
+        setState(() {
+          ownerFirstName = _auth.currentUser?.displayName ?? '';
+          ownerEmail = _auth.currentUser?.email ?? '';
+          ownerLoading = false;
+        });
+        return;
+      }
+      final data = doc.data()!;
+      ownerDocData = data;
+      print('Owner doc data keys: ${data.keys.toList()}');
+      setState(() {
+        ownerFirstName = (data['firstName'] ?? '').toString();
+        ownerLastName = (data['lastName'] ?? '').toString();
+        ownerAge = (data['age'] ?? '').toString();
+        ownerGender = (data['gender'] ?? '').toString();
+        ownerAddress = (data['address'] ?? '').toString();
+        ownerEmail = (data['email'] ?? _auth.currentUser?.email ?? '').toString();
+        ownerLoading = false;
+      });
+    } catch (e) {
+      print('Error fetching owner profile: $e');
+      setState(() => ownerLoading = false);
+    }
   }
 
   @override
@@ -65,7 +119,26 @@ class _PetProfileState extends State<PetProfile> {
 
   void onTabSelected(int idx) {
     setState(() => currentTab = idx);
-    // TODO: Implement actual navigation for Home and Schedule
+    
+    if (idx == 0) {
+      // Home tab - navigate back
+      Navigator.pop(context);
+    } else if (idx == 1) {
+      // Schedule tab - navigate to SchedulePage
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SchedulePage(
+            petName: widget.petName,
+            petBreed: widget.petBreed,
+            petGender: widget.petGender,
+            petAge: widget.petAge,
+            petWeight: widget.petWeight,
+            petHabit: widget.petHabit,
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -79,53 +152,101 @@ class _PetProfileState extends State<PetProfile> {
           Expanded(
             child: SingleChildScrollView(
               child: Center(
-                child: Card(
-                  elevation: 8,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
+                child: Center(
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 400),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          "Pet's Profile",
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Color(0xFF8D6748)),
-                        ),
-                        const SizedBox(height: 24),
-                        _buildField('Pet\'s Name', nameController, enabled: isEditing),
-                        _buildField('Pet\'s Breed', breedController, enabled: isEditing),
-                        _buildField('Pet\'s Age', ageController, enabled: isEditing, keyboardType: TextInputType.number),
-                        _buildField('Pet\'s Weight', weightController, enabled: isEditing, keyboardType: TextInputType.number),
-                        _buildField('Pet\'s Habit', habitController, enabled: isEditing),
-                        DropdownButtonFormField<String>(
-                          initialValue: gender,
-                          decoration: const InputDecoration(labelText: "Pet's Gender"),
-                          items: ['Male', 'Female'].map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
-                          onChanged: isEditing ? (v) => setState(() => gender = v ?? '') : null,
-                          disabledHint: Text(gender),
-                        ),
-                        const SizedBox(height: 24),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              if (isEditing) {
-                                saveEdits();
-                              } else {
-                                setState(() => isEditing = true);
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF4B8DF8),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 16),
+                        Card(
+                          elevation: 8,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "Pet's Profile",
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Color(0xFF8D6748)),
+                                ),
+                                const SizedBox(height: 18),
+                                _buildField('Pet\'s Name', nameController, enabled: isEditing),
+                                _buildField('Pet\'s Breed', breedController, enabled: isEditing),
+                                _buildField('Pet\'s Age', ageController, enabled: isEditing, keyboardType: TextInputType.number),
+                                _buildField('Pet\'s Weight', weightController, enabled: isEditing, keyboardType: TextInputType.number),
+                                _buildField('Pet\'s Habit', habitController, enabled: isEditing),
+                                DropdownButtonFormField<String>(
+                                  initialValue: gender,
+                                  decoration: const InputDecoration(labelText: "Pet's Gender"),
+                                  items: ['Male', 'Female'].map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
+                                  onChanged: isEditing ? (v) => setState(() => gender = v ?? '') : null,
+                                  disabledHint: Text(gender),
+                                ),
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      if (isEditing) {
+                                        saveEdits();
+                                      } else {
+                                        setState(() => isEditing = true);
+                                      }
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF4B8DF8),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                    ),
+                                    child: Text(
+                                      isEditing ? 'Save Profile' : 'Edit Profile',
+                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            child: Text(
-                              isEditing ? 'Save Profile' : 'Edit Profile',
-                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // Owner Profile Card
+                        Card(
+                          elevation: 6,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Owner Profile', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF8D6748))),
+                                const SizedBox(height: 12),
+                                if (ownerLoading)
+                                  const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator()))
+                                else ...[
+                                  _buildInfoRow('First name', ownerFirstName),
+                                  _buildInfoRow('Last name', ownerLastName),
+                                  _buildInfoRow('Age', ownerAge),
+                                  _buildInfoRow('Gender', ownerGender),
+                                  _buildInfoRow('Address', ownerAddress),
+                                  _buildInfoRow('Email', ownerEmail),
+                                  const SizedBox(height: 8),
+                                  const Divider(),
+                                  const SizedBox(height: 8),
+                                  // Debug info
+                                  _buildInfoRow('UID', ownerUid ?? '-'),
+                                  _buildInfoRow('Doc exists', ownerDocExists ? 'true' : 'false'),
+                                  if (ownerDocData != null) ...[
+                                    const SizedBox(height: 8),
+                                    const Text('Doc keys/values:', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 6),
+                                    ...ownerDocData!.entries.map((e) => Padding(padding: const EdgeInsets.symmetric(vertical:4.0), child: Row(children: [SizedBox(width:110, child: Text('${e.key}:', style: const TextStyle(fontWeight: FontWeight.bold))), Expanded(child: Text('${e.value}'))]))).toList(),
+                                  ],
+                                ],
+                              ],
                             ),
                           ),
                         ),
@@ -189,6 +310,19 @@ class _PetProfileState extends State<PetProfile> {
         decoration: InputDecoration(labelText: label),
         enabled: enabled,
         keyboardType: keyboardType,
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 110, child: Text('$label:', style: const TextStyle(fontWeight: FontWeight.bold))),
+          Expanded(child: Text(value.isEmpty ? '-' : value)),
+        ],
       ),
     );
   }

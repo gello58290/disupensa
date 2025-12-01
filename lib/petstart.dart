@@ -81,25 +81,29 @@ Future<void> registerUser() async {
 
     if (!mounted) return;
 
-    // ✅ Navigation to PetProfile
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PetProfile(
-          petName: petName.text.trim(),
-          petBreed: selectedBreed,
-          petGender: petGender,
-          petAge: petAge.text.trim(),
-          petWeight: petWeight.text.trim(),
-          petHabit: petHabit.text.trim(),
+    // ✅ Navigation to PetProfile - Pass strings as constructor expects
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PetProfile(
+            petName: petName.text.trim(),
+            petBreed: selectedBreed,
+            petGender: petGender,
+            petAge: petAge.text.trim(),
+            petWeight: petWeight.text.trim(),
+            petHabit: petHabit.text.trim(),
+          ),
         ),
-      ),
-    );
+      );
+    }
 
   } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error: $e')),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
   } finally {
     if (mounted) setState(() => isLoading = false);
   }
