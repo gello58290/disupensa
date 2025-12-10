@@ -36,10 +36,21 @@ class _SchedulePageState extends State<SchedulePage> {
 
   String scheduleType = 'Food';
 
+  // Feeding History
+  List<Map<String, dynamic>> feedingHistory = [];
+
+  // Notifications
+  List<Map<String, dynamic>> notifications = [
+    {'id': 1, 'title': 'Feeding time', 'message': 'Food feeding scheduled at 8:00 AM', 'timestamp': DateTime.now().subtract(const Duration(minutes: 30)), 'read': false, 'page': 'home'},
+    {'id': 2, 'title': 'Water low', 'message': 'Water level is below 25%', 'timestamp': DateTime.now().subtract(const Duration(hours: 2)), 'read': false, 'page': 'home'},
+    {'id': 3, 'title': 'Schedule reminder', 'message': 'You have 3 schedules for today', 'timestamp': DateTime.now().subtract(const Duration(hours: 5)), 'read': true, 'page': 'schedule'},
+  ];
+
   @override
   void initState() {
     super.initState();
     _fetchSchedules();
+    _fetchFeedingHistory();
   }
 
   Future<void> _fetchSchedules() async {
@@ -75,6 +86,62 @@ class _SchedulePageState extends State<SchedulePage> {
     setState(() => isLoading = false);
   }
 }
+
+  Future<void> _fetchFeedingHistory() async {
+    try {
+      final uid = _auth.currentUser?.uid;
+      if (uid == null) return;
+
+      final historySnapshot = await _firestore
+          .collection('user')
+          .doc(uid)
+          .collection('feedingHistory')
+          .orderBy('timestamp', descending: true)
+          .limit(50)
+          .get();
+
+      if (!mounted) return;
+
+      setState(() {
+        feedingHistory = historySnapshot.docs.map((doc) {
+          final data = doc.data();
+          return {
+            'id': doc.id,
+            'mealName': data['mealName'] ?? '',
+            'mealTime': data['mealTime'] ?? '',
+            'type': data['type'] ?? 'Food',
+            'timestamp': data['timestamp'] ?? Timestamp.now(),
+            'notes': data['notes'] ?? '',
+          };
+        }).toList();
+      });
+    } catch (e) {
+      print('Error fetching feeding history: $e');
+    }
+  }
+
+  Future<void> _logFeedingHistory(Map<String, dynamic> schedule) async {
+    try {
+      final uid = _auth.currentUser?.uid;
+      if (uid == null) return;
+
+      await _firestore
+          .collection('user')
+          .doc(uid)
+          .collection('feedingHistory')
+          .add({
+        'mealName': schedule['mealName'],
+        'mealTime': schedule['mealTime'],
+        'type': schedule['type'],
+        'timestamp': Timestamp.now(),
+        'notes': 'Fed at ${DateTime.now().toString()}',
+      });
+
+      _fetchFeedingHistory();
+    } catch (e) {
+      print('Error logging feeding history: $e');
+    }
+  }
 
   // Opens a modal to create one or more schedules for a selected date.
   Future<void> _showAddScheduleModal() async {
@@ -253,6 +320,12 @@ class _SchedulePageState extends State<SchedulePage> {
       final uid = _auth.currentUser?.uid;
       if (uid == null) return;
 
+      // If marking as fed (changing from false to true), log to history
+      if (!currentValue) {
+        final schedule = schedules.firstWhere((s) => s['id'] == scheduleId);
+        await _logFeedingHistory(schedule);
+      }
+
       await _firestore
           .collection('user')
           .doc(uid)
@@ -377,6 +450,31 @@ class _SchedulePageState extends State<SchedulePage> {
     return '$m $d · $hh:$mm';
   }
 
+  String _formatTime(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+    
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else {
+      return '${difference.inDays}d ago';
+    }
+  }
+
+  String _formatHistoryTime(DateTime timestamp) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    final m = months[timestamp.month - 1];
+    final d = timestamp.day;
+    final y = timestamp.year;
+    final hh = timestamp.hour.toString().padLeft(2, '0');
+    final mm = timestamp.minute.toString().padLeft(2, '0');
+    return '$m $d, $y · $hh:$mm';
+  }
+
   Future<void> _deleteSchedule(String scheduleId) async {
     try {
       final uid = _auth.currentUser?.uid;
@@ -433,7 +531,7 @@ class _SchedulePageState extends State<SchedulePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFB3D3F9),
+      backgroundColor: const Color(0xFFF5F7FA),
       body: Column(
         children: [
           _buildDashboardTabs(),
@@ -441,38 +539,79 @@ class _SchedulePageState extends State<SchedulePage> {
           Expanded(
             child: SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(
-                      'Schedule Feeding for ${widget.petName}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: Colors.black87,
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [const Color(0xFF8D6748), const Color(0xFFA0826D)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.15),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Schedule Management 📅',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Feeding for ${widget.petName}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 28,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 24),
                     Center(
                       child: Container(
-                        constraints: const BoxConstraints(maxWidth: 400),
+                        constraints: const BoxConstraints(maxWidth: 420),
                         child: Card(
                           elevation: 8,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                          color: Colors.white,
                           child: Padding(
-                            padding: const EdgeInsets.all(12.0),
+                            padding: const EdgeInsets.all(16.0),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 // Add New Schedule Row
                                 Row(
                                   children: [
+                                    Container(
+                                      width: 4,
+                                      height: 24,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF8D6748),
+                                        borderRadius: BorderRadius.circular(2),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
                                     const Expanded(
                                       child: Text(
-                                        'Manually Add and Remove',
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
+                                        'Create Schedule',
+                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
                                       ),
                                     ),
                                     ElevatedButton(
@@ -539,6 +678,118 @@ class _SchedulePageState extends State<SchedulePage> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 24),
+                    // Feeding History Section
+                    Text(
+                      'Feeding History',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Center(
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 400),
+                        child: Card(
+                          elevation: 8,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: feedingHistory.isEmpty
+                                ? const Padding(
+                                    padding: EdgeInsets.all(16.0),
+                                    child: Text(
+                                      'No feeding history yet',
+                                      style: TextStyle(
+                                        color: Colors.black54,
+                                        fontSize: 14,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  )
+                                : Column(
+                                    children: feedingHistory.map((record) {
+                                      final timestamp = record['timestamp'] is Timestamp
+                                          ? (record['timestamp'] as Timestamp).toDate()
+                                          : DateTime.tryParse(record['timestamp'].toString()) ?? DateTime.now();
+                                      final mealName = record['mealName'] as String;
+                                      final type = record['type'] as String;
+                                      final formattedTime = _formatHistoryTime(timestamp);
+
+                                      return Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Row(
+                                                        children: [
+                                                          Expanded(
+                                                            child: Text(
+                                                              mealName,
+                                                              style: const TextStyle(
+                                                                fontWeight: FontWeight.bold,
+                                                                fontSize: 14,
+                                                                color: Colors.black87,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          Container(
+                                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                            decoration: BoxDecoration(
+                                                              color: type == 'Food' ? Colors.orange.shade100 : Colors.blue.shade100,
+                                                              borderRadius: BorderRadius.circular(8),
+                                                            ),
+                                                            child: Text(
+                                                              type,
+                                                              style: TextStyle(
+                                                                fontSize: 12,
+                                                                color: type == 'Food' ? Colors.orange.shade900 : Colors.blue.shade900,
+                                                                fontWeight: FontWeight.w600,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      const SizedBox(height: 4),
+                                                      Text(
+                                                        formattedTime,
+                                                        style: const TextStyle(
+                                                          fontSize: 12,
+                                                          color: Colors.black54,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                Icon(
+                                                  type == 'Food' ? Icons.restaurant : Icons.local_drink,
+                                                  color: type == 'Food' ? Colors.orange : Colors.blue,
+                                                  size: 24,
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 8),
+                                            const Divider(height: 1),
+                                          ],
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -555,12 +806,178 @@ class _SchedulePageState extends State<SchedulePage> {
       padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
       child: SafeArea(
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _dashboardTab(icon: Icons.home, label: 'Home', idx: 0),
-            _dashboardTab(icon: Icons.schedule, label: 'Schedule', idx: 1),
-            _dashboardTab(icon: Icons.person, label: 'Profile', idx: 2),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _dashboardTab(icon: Icons.home, label: 'Home', idx: 0),
+                _dashboardTab(icon: Icons.schedule, label: 'Schedule', idx: 1),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: Row(
+                children: [
+                  // Notification Bell
+                  PopupMenuButton<String>(
+                    onSelected: (value) {
+                      if (value == 'clear-all') {
+                        setState(() {
+                          notifications.clear();
+                        });
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("All notifications cleared")),
+                        );
+                      } else {
+                        final notifId = int.tryParse(value);
+                        if (notifId != null) {
+                          setState(() {
+                            final idx = notifications.indexWhere((n) => n['id'] == notifId);
+                            if (idx >= 0) {
+                              notifications[idx]['read'] = true;
+                              final page = notifications[idx]['page'] as String?;
+                              if (page == 'home') {
+                                Navigator.of(context).pushNamed('/home');
+                              }
+                            }
+                          });
+                        }
+                      }
+                    },
+                    icon: Badge(
+                      label: Text('${notifications.where((n) => !n['read']).length}'),
+                      child: const Icon(Icons.notifications, color: Colors.white, size: 28),
+                    ),
+                    itemBuilder: (BuildContext context) {
+                      if (notifications.isEmpty) {
+                        return [
+                          const PopupMenuItem(
+                            enabled: false,
+                            child: Text('No notifications'),
+                          ),
+                        ];
+                      }
+                      return [
+                        ...notifications.map((notif) {
+                          final isRead = notif['read'] as bool;
+                          final title = notif['title'] as String;
+                          final message = notif['message'] as String;
+                          return PopupMenuItem(
+                            value: notif['id'].toString(),
+                            child: Container(
+                              width: 280,
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          title,
+                                          style: TextStyle(
+                                            fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ),
+                                      if (!isRead)
+                                        Container(
+                                          width: 8,
+                                          height: 8,
+                                          decoration: const BoxDecoration(
+                                            color: Colors.blue,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    message,
+                                    style: const TextStyle(fontSize: 12, color: Colors.black54),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    _formatTime(notif['timestamp'] as DateTime),
+                                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                        const PopupMenuDivider(),
+                        const PopupMenuItem(
+                          value: 'clear-all',
+                          child: Text('Clear all', style: TextStyle(color: Colors.red)),
+                        ),
+                      ];
+                    },
+                  ),
+                  const SizedBox(width: 4),
+                  PopupMenuButton<String>(
+                    onSelected: (value) {
+                      if (value == 'profile') {
+                        _navigateToProfile();
+                      } else if (value == 'logout') {
+                        _logout();
+                      }
+                    },
+                    icon: const Icon(Icons.account_circle, color: Colors.white, size: 32),
+                    itemBuilder: (BuildContext context) => [
+                      PopupMenuItem(
+                        value: 'profile',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.person, color: Colors.blue),
+                            const SizedBox(width: 8),
+                            const Text('Profile'),
+                          ],
+                        ),
+                        onTap: () => _navigateToProfile(),
+                      ),
+                      const PopupMenuItem(
+                        value: 'logout',
+                        child: Row(
+                          children: [
+                            Icon(Icons.logout, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('Logout'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _logout() {
+    _auth.signOut();
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
+  void _navigateToProfile() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PetProfile(
+          petName: widget.petName,
+          petBreed: widget.petBreed,
+          petGender: widget.petGender,
+          petAge: widget.petAge,
+          petWeight: widget.petWeight,
+          petHabit: widget.petHabit,
         ),
       ),
     );
