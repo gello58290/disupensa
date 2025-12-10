@@ -107,15 +107,55 @@ class _PetProfileState extends State<PetProfile> {
     super.dispose();
   }
 
-  void saveEdits() {
-    setState(() {
-      isEditing = false;
-    });
+  Future<void> saveEdits() async {
+  setState(() {
+    isEditing = false;
+  });
+
+  // Give UI time to update before checking mounted
+  await Future.delayed(const Duration(milliseconds: 50));
+  if (!mounted) return;
+
+  final uid = _auth.currentUser?.uid;
+  if (uid == null) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Profile updated!')),
+      const SnackBar(content: Text("User not logged in.")),
     );
-    // Save to Firestore if needed
+    return;
   }
+
+  try {
+    // Reference to user's pet document using the pet's name
+    final petRef = _firestore
+        .collection('user')
+        .doc(uid)
+        .collection('pets')
+        .doc(widget.petName);
+
+    await petRef.update({
+      'name': nameController.text.trim(),
+      'breed': breedController.text.trim(),
+      'age': ageController.text.trim(),
+      'weight': weightController.text.trim(),
+      'habit': habitController.text.trim(),
+      'gender': gender,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Pet profile saved!')),
+    );
+
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed to save: $e')),
+    );
+  }
+}
+
 
   void onTabSelected(int idx) {
     setState(() => currentTab = idx);
@@ -125,7 +165,7 @@ class _PetProfileState extends State<PetProfile> {
       Navigator.pop(context);
     } else if (idx == 1) {
       // Schedule tab - navigate to SchedulePage
-      Navigator.pushReplacement(
+      Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => SchedulePage(
@@ -211,45 +251,7 @@ class _PetProfileState extends State<PetProfile> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        // Owner Profile Card
-                        Card(
-                          elevation: 6,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('Owner Profile', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF8D6748))),
-                                const SizedBox(height: 12),
-                                if (ownerLoading)
-                                  const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator()))
-                                else ...[
-                                  _buildInfoRow('First name', ownerFirstName),
-                                  _buildInfoRow('Last name', ownerLastName),
-                                  _buildInfoRow('Age', ownerAge),
-                                  _buildInfoRow('Gender', ownerGender),
-                                  _buildInfoRow('Address', ownerAddress),
-                                  _buildInfoRow('Email', ownerEmail),
-                                  const SizedBox(height: 8),
-                                  const Divider(),
-                                  const SizedBox(height: 8),
-                                  // Debug info
-                                  _buildInfoRow('UID', ownerUid ?? '-'),
-                                  _buildInfoRow('Doc exists', ownerDocExists ? 'true' : 'false'),
-                                  if (ownerDocData != null) ...[
-                                    const SizedBox(height: 8),
-                                    const Text('Doc keys/values:', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    const SizedBox(height: 6),
-                                    ...ownerDocData!.entries.map((e) => Padding(padding: const EdgeInsets.symmetric(vertical:4.0), child: Row(children: [SizedBox(width:110, child: Text('${e.key}:', style: const TextStyle(fontWeight: FontWeight.bold))), Expanded(child: Text('${e.value}'))]))).toList(),
-                                  ],
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
+                       
                       ],
                     ),
                   ),

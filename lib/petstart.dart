@@ -192,7 +192,7 @@ Future<void> registerUser() async {
                                 ),
                                 const SizedBox(height: 6),
                                 DropdownButtonFormField<String>(
-                                  value: selectedBreed.isEmpty ? null : selectedBreed,
+                                  initialValue: selectedBreed.isEmpty ? null : selectedBreed,
                                   isExpanded: false,
                                   decoration: InputDecoration(
                                     filled: true,
@@ -295,7 +295,7 @@ Future<void> registerUser() async {
                           ),
                           const SizedBox(height: 6),
                           DropdownButtonFormField<String>(
-                            value: petGender.isEmpty ? null : petGender,
+                            initialValue: petGender.isEmpty ? null : petGender,
                             isExpanded: true,
                             decoration: InputDecoration(
                               filled: true,

@@ -43,40 +43,38 @@ class _SchedulePageState extends State<SchedulePage> {
   }
 
   Future<void> _fetchSchedules() async {
-    try {
-      final uid = _auth.currentUser?.uid;
-      if (uid == null) return;
+  try {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
 
-      final schedulesSnapshot = await _firestore
-          .collection('user')
-          .doc(uid)
-          .collection('schedules')
-          .orderBy('createdAt', descending: false)
-          .get();
+    final schedulesSnapshot = await _firestore
+        .collection('user')
+        .doc(uid)
+        .collection('schedules')
+        .orderBy('createdAt', descending: false)
+        .get();
 
-      print('Fetched ${schedulesSnapshot.docs.length} schedules');
+    if (!mounted) return; // <-- IMPORTANT FIX
 
-      setState(() {
-        schedules = schedulesSnapshot.docs
-            .map((doc) {
-              final data = doc.data();
-              return {
-                'id': doc.id,
-                'mealName': data['mealName'] ?? '',
-                'mealTime': data['mealTime'] ?? '',
-                'isFedToday': data['isFedToday'] ?? false,
-                'createdAt': data['createdAt'],
-                'type': data.containsKey('type') ? data['type'] : 'Food', // Safe retrieval with default
-              };
-            })
-            .toList();
-        isLoading = false;
-      });
-    } catch (e) {
-      print('Error fetching schedules: $e');
-      setState(() => isLoading = false);
-    }
+    setState(() {
+      schedules = schedulesSnapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'mealName': data['mealName'] ?? '',
+          'mealTime': data['mealTime'] ?? '',
+          'isFedToday': data['isFedToday'] ?? false,
+          'createdAt': data['createdAt'],
+          'type': data['type'] ?? 'Food',
+        };
+      }).toList();
+      isLoading = false;
+    });
+  } catch (e) {
+    if (!mounted) return;  // <-- prevent setState after dispose
+    setState(() => isLoading = false);
   }
+}
 
   // Opens a modal to create one or more schedules for a selected date.
   Future<void> _showAddScheduleModal() async {
@@ -89,7 +87,7 @@ class _SchedulePageState extends State<SchedulePage> {
       context: context,
       builder: (context) {
         return StatefulBuilder(builder: (context, setModalState) {
-          void _pickDate() async {
+          void pickDate() async {
             final DateTime? picked = await showDatePicker(
               context: context,
               initialDate: selectedDate,
@@ -101,7 +99,7 @@ class _SchedulePageState extends State<SchedulePage> {
             }
           }
 
-          void _pickTime(int index) async {
+          void pickTime(int index) async {
             final t = await showTimePicker(
               context: context,
               initialTime: times[index] ?? TimeOfDay.now(),
@@ -109,7 +107,7 @@ class _SchedulePageState extends State<SchedulePage> {
             if (t != null) setModalState(() => times[index] = t);
           }
 
-          void _updateQuantity(String v) {
+          void updateQuantity(String v) {
             final q = int.tryParse(v) ?? 0;
             if (q <= 0) return;
             setModalState(() {
@@ -135,7 +133,7 @@ class _SchedulePageState extends State<SchedulePage> {
                       Expanded(
                         child: Text('Date: ${selectedDate.toLocal().toIso8601String().split('T')[0]}'),
                       ),
-                      TextButton(onPressed: _pickDate, child: const Text('Pick')),
+                      TextButton(onPressed: pickDate, child: const Text('Pick')),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -163,7 +161,7 @@ class _SchedulePageState extends State<SchedulePage> {
                         child: TextField(
                           keyboardType: TextInputType.number,
                           decoration: const InputDecoration(hintText: '1'),
-                          onChanged: _updateQuantity,
+                          onChanged: updateQuantity,
                         ),
                       ),
                     ],
@@ -178,7 +176,7 @@ class _SchedulePageState extends State<SchedulePage> {
                       return Row(
                         children: [
                           Expanded(child: Text('Meal ${i + 1}: $label')),
-                          TextButton(onPressed: () => _pickTime(i), child: const Text('Pick')),
+                          TextButton(onPressed: () => pickTime(i), child: const Text('Pick')),
                         ],
                       );
                     }),
@@ -288,7 +286,7 @@ class _SchedulePageState extends State<SchedulePage> {
       context: context,
       builder: (context) {
         return StatefulBuilder(builder: (context, setModalState) {
-          void _pickDate() async {
+          void pickDate() async {
             final picked = await showDatePicker(
               context: context,
               initialDate: selectedDate,
@@ -298,7 +296,7 @@ class _SchedulePageState extends State<SchedulePage> {
             if (picked != null) setModalState(() => selectedDate = picked);
           }
 
-          void _pickTime() async {
+          void pickTime() async {
             final t = await showTimePicker(context: context, initialTime: selectedTime);
             if (t != null) setModalState(() => selectedTime = t);
           }
@@ -317,13 +315,13 @@ class _SchedulePageState extends State<SchedulePage> {
                 Row(
                   children: [
                     Expanded(child: Text('Date: ${selectedDate.toLocal().toIso8601String().split('T')[0]}')),
-                    TextButton(onPressed: _pickDate, child: const Text('Pick')),
+                    TextButton(onPressed: pickDate, child: const Text('Pick')),
                   ],
                 ),
                 Row(
                   children: [
                     Expanded(child: Text('Time: ${selectedTime.format(context)}')),
-                    TextButton(onPressed: _pickTime, child: const Text('Pick')),
+                    TextButton(onPressed: pickTime, child: const Text('Pick')),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -410,13 +408,13 @@ class _SchedulePageState extends State<SchedulePage> {
 
     if (idx == 0) {
       // Home tab - navigate back to HomePage
-      Navigator.pushReplacement(
+      Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const HomePage()),
       );
     } else if (idx == 2) {
       // Profile tab - navigate to PetProfile
-      Navigator.pushReplacement(
+      Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => PetProfile(
