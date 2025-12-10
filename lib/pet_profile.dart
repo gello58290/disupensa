@@ -1,3 +1,4 @@
+// pet_profile.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -33,7 +34,7 @@ class _PetProfileState extends State<PetProfile> {
   late TextEditingController habitController;
   late String gender;
   bool isEditing = false;
-  int currentTab = 2; // 0: Home, 1: Schedule, 2: Profile
+  int currentTab = 2;
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
 
@@ -45,7 +46,6 @@ class _PetProfileState extends State<PetProfile> {
   String ownerAddress = '';
   String ownerEmail = '';
   bool ownerLoading = true;
-  // Debug info for owner doc
   String? ownerUid;
   bool ownerDocExists = false;
   Map<String, dynamic>? ownerDocData;
@@ -70,8 +70,6 @@ class _PetProfileState extends State<PetProfile> {
       ownerUid = uid;
       ownerDocExists = doc.exists;
       if (!doc.exists) {
-        // No user doc found — fall back to auth info
-        print('Owner doc not found for uid: $uid');
         setState(() {
           ownerFirstName = _auth.currentUser?.displayName ?? '';
           ownerEmail = _auth.currentUser?.email ?? '';
@@ -81,7 +79,6 @@ class _PetProfileState extends State<PetProfile> {
       }
       final data = doc.data()!;
       ownerDocData = data;
-      print('Owner doc data keys: ${data.keys.toList()}');
       setState(() {
         ownerFirstName = (data['firstName'] ?? '').toString();
         ownerLastName = (data['lastName'] ?? '').toString();
@@ -92,8 +89,8 @@ class _PetProfileState extends State<PetProfile> {
         ownerLoading = false;
       });
     } catch (e) {
-      print('Error fetching owner profile: $e');
       setState(() => ownerLoading = false);
+      print('Error fetching owner profile: $e');
     }
   }
 
@@ -108,23 +105,18 @@ class _PetProfileState extends State<PetProfile> {
   }
 
   void saveEdits() {
-    setState(() {
-      isEditing = false;
-    });
+    setState(() => isEditing = false);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Profile updated!')),
     );
-    // Save to Firestore if needed
   }
 
   void onTabSelected(int idx) {
     setState(() => currentTab = idx);
-    
+
     if (idx == 0) {
-      // Home tab - navigate back
       Navigator.pop(context);
     } else if (idx == 1) {
-      // Schedule tab - navigate to SchedulePage
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -152,106 +144,190 @@ class _PetProfileState extends State<PetProfile> {
           Expanded(
             child: SingleChildScrollView(
               child: Center(
-                child: Center(
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 400),
-                    child: Column(
-                      children: [
-                        Card(
-                          elevation: 8,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                          child: Padding(
-                            padding: const EdgeInsets.all(20.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  "Pet's Profile",
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Color(0xFF8D6748)),
-                                ),
-                                const SizedBox(height: 18),
-                                _buildField('Pet\'s Name', nameController, enabled: isEditing),
-                                _buildField('Pet\'s Breed', breedController, enabled: isEditing),
-                                _buildField('Pet\'s Age', ageController, enabled: isEditing, keyboardType: TextInputType.number),
-                                _buildField('Pet\'s Weight', weightController, enabled: isEditing, keyboardType: TextInputType.number),
-                                _buildField('Pet\'s Habit', habitController, enabled: isEditing),
-                                DropdownButtonFormField<String>(
-                                  initialValue: gender,
-                                  decoration: const InputDecoration(labelText: "Pet's Gender"),
-                                  items: ['Male', 'Female'].map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
-                                  onChanged: isEditing ? (v) => setState(() => gender = v ?? '') : null,
-                                  disabledHint: Text(gender),
-                                ),
-                                const SizedBox(height: 16),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton(
-                                    onPressed: () {
-                                      if (isEditing) {
-                                        saveEdits();
-                                      } else {
-                                        setState(() => isEditing = true);
-                                      }
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF4B8DF8),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      // ---------- SIDE BY SIDE CARDS ----------
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // PET CARD (LEFT)
+                          Expanded(
+                            child: Card(
+                              elevation: 8,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20)),
+                              margin: const EdgeInsets.all(8),
+                              child: Padding(
+                                padding: const EdgeInsets.all(20.0),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      "Pet's Profile",
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 22,
+                                          color: Color(0xFF8D6748)),
                                     ),
-                                    child: Text(
-                                      isEditing ? 'Save Profile' : 'Edit Profile',
-                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                    const SizedBox(height: 18),
+                                    _buildField('Pet\'s Name', nameController,
+                                        enabled: isEditing),
+                                    _buildField('Pet\'s Breed', breedController,
+                                        enabled: isEditing),
+                                    _buildField(
+                                        'Pet\'s Age', ageController,
+                                        enabled: isEditing,
+                                        keyboardType: TextInputType.number),
+                                    _buildField(
+                                        'Pet\'s Weight', weightController,
+                                        enabled: isEditing,
+                                        keyboardType: TextInputType.number),
+                                    _buildField(
+                                      'Pet\'s Habit',
+                                      habitController,
+                                      enabled: isEditing,
                                     ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        // Owner Profile Card
-                        Card(
-                          elevation: 6,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('Owner Profile', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF8D6748))),
-                                const SizedBox(height: 12),
-                                if (ownerLoading)
-                                  const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator()))
-                                else ...[
-                                  _buildInfoRow('First name', ownerFirstName),
-                                  _buildInfoRow('Last name', ownerLastName),
-                                  _buildInfoRow('Age', ownerAge),
-                                  _buildInfoRow('Gender', ownerGender),
-                                  _buildInfoRow('Address', ownerAddress),
-                                  _buildInfoRow('Email', ownerEmail),
-                                  const SizedBox(height: 8),
-                                  const Divider(),
-                                  const SizedBox(height: 8),
-                                  // Debug info
-                                  _buildInfoRow('UID', ownerUid ?? '-'),
-                                  _buildInfoRow('Doc exists', ownerDocExists ? 'true' : 'false'),
-                                  if (ownerDocData != null) ...[
-                                    const SizedBox(height: 8),
-                                    const Text('Doc keys/values:', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    const SizedBox(height: 6),
-                                    ...ownerDocData!.entries.map((e) => Padding(padding: const EdgeInsets.symmetric(vertical:4.0), child: Row(children: [SizedBox(width:110, child: Text('${e.key}:', style: const TextStyle(fontWeight: FontWeight.bold))), Expanded(child: Text('${e.value}'))]))).toList(),
+                                    DropdownButtonFormField<String>(
+                                      initialValue:
+                                          gender.isEmpty ? null : gender,
+                                      decoration: const InputDecoration(
+                                          labelText: "Pet's Gender"),
+                                      items: ['Male', 'Female']
+                                          .map((g) => DropdownMenuItem(
+                                                value: g,
+                                                child: Text(g),
+                                              ))
+                                          .toList(),
+                                      onChanged: isEditing
+                                          ? (v) => setState(() =>
+                                              gender = v ?? '')
+                                          : null,
+                                    ),
                                   ],
-                                ],
-                              ],
+                                ),
+                              ),
                             ),
                           ),
+
+                          // OWNER CARD (RIGHT)
+                          Expanded(
+                            child: Card(
+                              elevation: 6,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16)),
+                              margin: const EdgeInsets.all(8),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Owner Profile',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 18,
+                                          color: Color(0xFF8D6748)),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    if (ownerLoading)
+                                      const Center(
+                                          child: CircularProgressIndicator())
+                                    else ...[
+                                      _buildField(
+                                          'First Name',
+                                          TextEditingController(
+                                              text: ownerFirstName),
+                                          enabled: isEditing,
+                                          onChanged: (v) =>
+                                              ownerFirstName = v),
+                                      _buildField(
+                                          'Last Name',
+                                          TextEditingController(
+                                              text: ownerLastName),
+                                          enabled: isEditing,
+                                          onChanged: (v) =>
+                                              ownerLastName = v),
+                                      _buildField(
+                                          'Age',
+                                          TextEditingController(
+                                              text: ownerAge),
+                                          keyboardType: TextInputType.number,
+                                          enabled: isEditing,
+                                          onChanged: (v) => ownerAge = v),
+                                      DropdownButtonFormField<String>(
+                                        initialValue: ownerGender.isEmpty
+                                            ? null
+                                            : ownerGender,
+                                        decoration: const InputDecoration(
+                                            labelText: "Gender"),
+                                        items: ['Male', 'Female']
+                                            .map((g) => DropdownMenuItem(
+                                                  value: g,
+                                                  child: Text(g),
+                                                ))
+                                            .toList(),
+                                        onChanged: isEditing
+                                            ? (v) => setState(() =>
+                                                ownerGender = v ?? '')
+                                            : null,
+                                      ),
+                                      _buildField(
+                                          'Address',
+                                          TextEditingController(
+                                              text: ownerAddress),
+                                          enabled: isEditing,
+                                          onChanged: (v) =>
+                                              ownerAddress = v),
+                                      _buildField(
+                                          'Email',
+                                          TextEditingController(
+                                              text: ownerEmail),
+                                          enabled: isEditing,
+                                          onChanged: (v) => ownerEmail = v),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      // ---------- EDIT BUTTON OUTSIDE ----------
+                      SizedBox(
+                        width: 220,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (isEditing) {
+                              saveEdits();
+                            } else {
+                              setState(() => isEditing = true);
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF4B8DF8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: Text(
+                            isEditing ? 'Save Profile' : 'Edit Profile',
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
                         ),
-                      ],
-                    ),
+                      ),
+
+                      const SizedBox(height: 20),
+                    ],
                   ),
                 ),
               ),
@@ -279,21 +355,26 @@ class _PetProfileState extends State<PetProfile> {
     );
   }
 
-  Widget _dashboardTab({required IconData icon, required String label, required int idx}) {
+  Widget _dashboardTab(
+      {required IconData icon, required String label, required int idx}) {
     final bool selected = currentTab == idx;
     return GestureDetector(
       onTap: () => onTabSelected(idx),
       child: Container(
         color: Colors.transparent,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         child: Column(
           children: [
-            Icon(icon, color: selected ? Colors.white : Colors.white70, size: 28),
+            Icon(icon,
+                color: selected ? Colors.white : Colors.white70,
+                size: 28),
             Text(
               label,
               style: TextStyle(
                 color: selected ? Colors.white : Colors.white70,
-                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                fontWeight:
+                    selected ? FontWeight.bold : FontWeight.normal,
               ),
             ),
           ],
@@ -302,7 +383,10 @@ class _PetProfileState extends State<PetProfile> {
     );
   }
 
-  Widget _buildField(String label, TextEditingController controller, {bool enabled = false, TextInputType keyboardType = TextInputType.text}) {
+  Widget _buildField(String label, TextEditingController controller,
+      {bool enabled = false,
+      TextInputType keyboardType = TextInputType.text,
+      void Function(String)? onChanged}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: TextFormField(
@@ -310,19 +394,7 @@ class _PetProfileState extends State<PetProfile> {
         decoration: InputDecoration(labelText: label),
         enabled: enabled,
         keyboardType: keyboardType,
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(width: 110, child: Text('$label:', style: const TextStyle(fontWeight: FontWeight.bold))),
-          Expanded(child: Text(value.isEmpty ? '-' : value)),
-        ],
+        onChanged: onChanged,
       ),
     );
   }

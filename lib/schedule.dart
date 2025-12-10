@@ -89,7 +89,7 @@ class _SchedulePageState extends State<SchedulePage> {
       context: context,
       builder: (context) {
         return StatefulBuilder(builder: (context, setModalState) {
-          void _pickDate() async {
+          void pickDate() async {
             final DateTime? picked = await showDatePicker(
               context: context,
               initialDate: selectedDate,
@@ -101,7 +101,7 @@ class _SchedulePageState extends State<SchedulePage> {
             }
           }
 
-          void _pickTime(int index) async {
+          void pickTime(int index) async {
             final t = await showTimePicker(
               context: context,
               initialTime: times[index] ?? TimeOfDay.now(),
@@ -109,7 +109,7 @@ class _SchedulePageState extends State<SchedulePage> {
             if (t != null) setModalState(() => times[index] = t);
           }
 
-          void _updateQuantity(String v) {
+          void updateQuantity(String v) {
             final q = int.tryParse(v) ?? 0;
             if (q <= 0) return;
             setModalState(() {
@@ -135,7 +135,7 @@ class _SchedulePageState extends State<SchedulePage> {
                       Expanded(
                         child: Text('Date: ${selectedDate.toLocal().toIso8601String().split('T')[0]}'),
                       ),
-                      TextButton(onPressed: _pickDate, child: const Text('Pick')),
+                      TextButton(onPressed: pickDate, child: const Text('Pick')),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -163,7 +163,7 @@ class _SchedulePageState extends State<SchedulePage> {
                         child: TextField(
                           keyboardType: TextInputType.number,
                           decoration: const InputDecoration(hintText: '1'),
-                          onChanged: _updateQuantity,
+                          onChanged: updateQuantity,
                         ),
                       ),
                     ],
@@ -178,7 +178,7 @@ class _SchedulePageState extends State<SchedulePage> {
                       return Row(
                         children: [
                           Expanded(child: Text('Meal ${i + 1}: $label')),
-                          TextButton(onPressed: () => _pickTime(i), child: const Text('Pick')),
+                          TextButton(onPressed: () => pickTime(i), child: const Text('Pick')),
                         ],
                       );
                     }),
@@ -288,7 +288,7 @@ class _SchedulePageState extends State<SchedulePage> {
       context: context,
       builder: (context) {
         return StatefulBuilder(builder: (context, setModalState) {
-          void _pickDate() async {
+          void pickDate() async {
             final picked = await showDatePicker(
               context: context,
               initialDate: selectedDate,
@@ -298,7 +298,7 @@ class _SchedulePageState extends State<SchedulePage> {
             if (picked != null) setModalState(() => selectedDate = picked);
           }
 
-          void _pickTime() async {
+          void pickTime() async {
             final t = await showTimePicker(context: context, initialTime: selectedTime);
             if (t != null) setModalState(() => selectedTime = t);
           }
@@ -317,13 +317,13 @@ class _SchedulePageState extends State<SchedulePage> {
                 Row(
                   children: [
                     Expanded(child: Text('Date: ${selectedDate.toLocal().toIso8601String().split('T')[0]}')),
-                    TextButton(onPressed: _pickDate, child: const Text('Pick')),
+                    TextButton(onPressed: pickDate, child: const Text('Pick')),
                   ],
                 ),
                 Row(
                   children: [
                     Expanded(child: Text('Time: ${selectedTime.format(context)}')),
-                    TextButton(onPressed: _pickTime, child: const Text('Pick')),
+                    TextButton(onPressed: pickTime, child: const Text('Pick')),
                   ],
                 ),
                 const SizedBox(height: 8),
